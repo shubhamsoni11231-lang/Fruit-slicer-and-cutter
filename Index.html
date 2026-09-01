@@ -1,0 +1,752 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fruit Slicer Deluxe</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+        body {
+            overflow: hidden;
+            background: #110904;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            width: 100vw; height: 100vh;
+        }
+        canvas { display: block; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; touch-action: none; }
+        
+        #uiContainer {
+            display: none; position: absolute; top: 15px; left: 20px; right: 20px;
+            justify-content: space-between; align-items: center;
+            color: #fff; font-size: 20px; font-weight: bold;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.8); pointer-events: none; z-index: 10;
+        }
+
+        .currency-box {
+            position: absolute; top: 15px; right: 20px; display: flex; gap: 15px;
+            color: #fff; font-size: 20px; font-weight: bold;
+            text-shadow: 2px 2px 6px rgba(0,0,0,0.8); z-index: 50; pointer-events: none;
+        }
+
+        #dailyBtnTop {
+            position: absolute; top: 15px; left: 20px; z-index: 50; cursor: pointer;
+            background: rgba(0,210,211,0.2); border: 2px solid #00d2d3;
+            color: #00d2d3; padding: 8px 15px; border-radius: 10px;
+            font-size: 16px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            pointer-events: auto;
+        }
+
+        #timer { color: #ffda79; }
+        #score { color: #7bed9f; }
+        #coins { color: #f1c40f; }
+        #diamonds { color: #00d2d3; }
+
+        .modal {
+            display: none; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); text-align: center; color: white;
+            background: rgba(15, 10, 5, 0.95); padding: 25px 30px; border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid #ff4757; z-index: 100;
+            width: 85%; max-width: 420px; pointer-events: auto;
+        }
+
+        #mainMenu, #timerSelectionMenu, #auraMenu, #bgMenu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: radial-gradient(circle at center, rgba(44, 26, 14, 0.95), rgba(15, 8, 3, 0.98));
+            z-index: 40; pointer-events: auto;
+        }
+
+        #timerSelectionMenu, #auraMenu, #bgMenu { display: none; z-index: 45; }
+
+        .game-title {
+            font-size: 42px; color: #ffda79; text-shadow: 3px 3px 10px rgba(0,0,0,0.9);
+            margin-bottom: 25px; font-weight: 900; letter-spacing: 2px;
+        }
+
+        .menu-subtitle { font-size: 26px; color: #ffda79; margin-bottom: 20px; font-weight: bold; }
+
+        .main-menu-buttons { display: flex; flex-direction: column; gap: 12px; width: 250px; }
+
+        .mode-btn {
+            padding: 14px 25px; font-size: 18px;
+            background: linear-gradient(135deg, #ff4757, #ff6b81);
+            color: white; border: none; border-radius: 15px; cursor: pointer;
+            font-weight: bold; box-shadow: 0 6px 20px rgba(255, 71, 87, 0.5); width: 100%;
+        }
+
+        .mode-btn.endless {
+            background: linear-gradient(135deg, #2ed573, #7bed9f);
+            box-shadow: 0 6px 20px rgba(46, 213, 115, 0.5); color: #0f0803;
+        }
+
+        .mode-btn.aura {
+            background: linear-gradient(135deg, #a55eea, #45aaf2);
+            box-shadow: 0 6px 20px rgba(165, 94, 234, 0.5); color: #fff;
+        }
+
+        .mode-btn.bg {
+            background: linear-gradient(135deg, #e17055, #fdcb6e);
+            box-shadow: 0 6px 20px rgba(225, 112, 85, 0.5); color: #fff;
+        }
+
+        .shop-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; max-width: 360px;
+        }
+
+        .shop-card {
+            background: rgba(255, 255, 255, 0.08); border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px; padding: 12px; display: flex; flex-direction: column;
+            align-items: center; justify-content: space-between; gap: 8px;
+        }
+
+        .shop-card.equipped { border-color: #2ed573; background: rgba(46, 213, 115, 0.15); }
+
+        .shop-title { font-size: 15px; font-weight: bold; text-align: center; }
+
+        .shop-btn {
+            padding: 6px 12px; font-size: 14px; border-radius: 8px; border: none;
+            cursor: pointer; font-weight: bold; width: 100%;
+        }
+
+        .shop-btn.buy { background: #f1c40f; color: #000; }
+        .shop-btn.equip { background: #00d2d3; color: #000; }
+        .shop-btn.active-status { background: #2ed573; color: #000; cursor: default; }
+
+        .timer-options { display: flex; flex-direction: column; gap: 12px; width: 220px; }
+
+        .time-option-btn {
+            padding: 12px 20px; font-size: 18px; background: rgba(255, 255, 255, 0.1);
+            color: #fff; border: 2px solid #ffda79; border-radius: 12px; cursor: pointer; font-weight: bold;
+        }
+
+        .back-btn {
+            margin-top: 20px; padding: 8px 25px; font-size: 16px;
+            background: #444; color: #ccc; border: none; border-radius: 8px; cursor: pointer;
+        }
+
+        .daily-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px 0; }
+
+        .day-card {
+            background: rgba(255,255,255,0.1); padding: 10px 5px; border-radius: 8px;
+            font-size: 12px; border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .day-card.active { border-color: #00d2d3; background: rgba(0,210,211,0.2); }
+        .day-card.claimed { opacity: 0.5; }
+
+        .floating-score {
+            position: absolute; font-weight: bold; font-size: 26px; pointer-events: none; z-index: 20;
+            animation: floatUp 0.6s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-30px) scale(1.2); }
+        }
+
+        button {
+            margin-top: 15px; padding: 10px 25px; font-size: 18px;
+            background: #ff4757; color: white; border: none; border-radius: 10px;
+            cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 71, 87, 0.4);
+        }
+
+        #reviveBtn {
+            background: linear-gradient(135deg, #00d2d3, #48dbfb);
+            color: #0f0803; box-shadow: 0 4px 15px rgba(0, 210, 211, 0.5);
+            margin-top: 15px; display: block; width: 100%;
+        }
+
+        button:active { transform: scale(0.95); }
+    </style>
+</head>
+<body>
+
+    <button id="dailyBtnTop">📅 Daily Check-In</button>
+
+    <div class="currency-box">
+        <div>🪙 <span id="coins">0</span></div>
+        <div>💎 <span id="diamonds">0</span></div>
+    </div>
+
+    <div id="mainMenu"><
+        <h1 class="game-title">FRUIT SLICER</h1>
+        <div class="main-menu-buttons">
+            <button class="mode-btn" id="openTimerMenuBtn">⏱️ Timer Mode</button>
+            <button class="mode-btn endless" id="startEndlessBtn">♾️ Endless Mode</button>
+            <button class="mode-btn aura" id="openAuraMenuBtn">✨ Cutting Aura</button>
+            <button class="mode-btn bg" id="openBgMenuBtn">🖼️ Backgrounds</button>
+        </div>
+    </div>
+
+    <div id="timerSelectionMenu">
+        <h2 class="menu-subtitle">Select Duration</h2>
+        <div class="timer-options">
+            <button class="time-option-btn" data-time="15">⚡ 15 Seconds</button>
+            <button class="time-option-btn" data-time="30">🚀 30 Seconds</button>
+            <button class="time-option-btn" data-time="45">🔥 45 Seconds</button>
+            <button class="time-option-btn" data-time="60">⌛ 1 Minute</button>
+            <button class="time-option-btn" data-time="90">🏆 1 Min 30 Sec</button>
+        </div>
+        <button class="back-btn" id="backToMenuBtn">Back</button>
+    </div>
+
+    <div id="auraMenu">
+        <h2 class="menu-subtitle">Cutting Auras</h2>
+        <div class="shop-grid" id="auraGrid"></div>
+        <button class="back-btn" id="backFromAuraBtn">Back</button>
+    </div>
+
+    <div id="bgMenu">
+        <h2 class="menu-subtitle">Select Background</h2>
+        <div class="shop-grid" id="bgGrid"></div>
+        <button class="back-btn" id="backFromBgBtn">Back</button>
+    </div>
+
+    <div id="uiContainer">
+        <div>
+            <div>Score: <span id="score">0</span></div>
+            <div id="timer">Time: 00:00</div>
+        </div>
+    </div>
+    
+    <div id="dailyModal" class="modal">
+        <h2 style="color: #00d2d3;">Daily Reward!</h2>
+        <p style="font-size: 14px; margin-top: 5px;">Check in daily to earn free diamonds!</p>
+        <div class="daily-grid" id="dailyGrid"></div>
+        <button id="claimBtn">Claim Diamond</button>
+        <button id="closeDailyBtn" style="background: #333; margin-top: 10px;">Close</button>
+    </div>
+
+    <div id="gameOverMenu" class="modal">
+        <h1 id="gameOverTitle" style="font-size: 34px; color: #ff4757; margin-bottom: 10px;">TIME'S UP!</h1>
+        <p style="font-size: 18px;">Score: <span id="finalScore" style="color: #7bed9f;">0</span></p>
+        <p style="font-size: 18px;">Coins Earned: 🪙 <span id="earnedCoins" style="color: #f1c40f;">0</span></p>
+        <button id="reviveBtn">💖 Revive (💎 5)</button>
+        <button id="restartBtn">Play Again</button>
+        <button id="homeBtn" style="background: #333; margin-top: 10px;">Main Menu</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const coinsEl = document.getElementById('coins');
+        const diamondsEl = document.getElementById('diamonds');
+        const timerEl = document.getElementById('timer');
+        const gameOverMenu = document.getElementById('gameOverMenu');
+        const gameOverTitle = document.getElementById('gameOverTitle');
+        const dailyModal = document.getElementById('dailyModal');
+        const mainMenu = document.getElementById('mainMenu');
+        const timerSelectionMenu = document.getElementById('timerSelectionMenu');
+        const auraMenu = document.getElementById('auraMenu');
+        const bgMenu = document.getElementById('bgMenu');
+        const auraGrid = document.getElementById('auraGrid');
+        const bgGrid = document.getElementById('bgGrid');
+        const uiContainer = document.getElementById('uiContainer');
+        const finalScoreEl = document.getElementById('finalScore');
+        const earnedCoinsEl = document.getElementById('earnedCoins');
+        const restartBtn = document.getElementById('restartBtn');
+        const reviveBtn = document.getElementById('reviveBtn');
+        const homeBtn = document.getElementById('homeBtn');
+        const claimBtn = document.getElementById('claimBtn');
+        const closeDailyBtn = document.getElementById('closeDailyBtn');
+        const dailyBtnTop = document.getElementById('dailyBtnTop');
+        const openTimerMenuBtn = document.getElementById('openTimerMenuBtn');
+        const startEndlessBtn = document.getElementById('startEndlessBtn');
+        const openAuraMenuBtn = document.getElementById('openAuraMenuBtn');
+        const openBgMenuBtn = document.getElementById('openBgMenuBtn');
+        const backToMenuBtn = document.getElementById('backToMenuBtn');
+        const backFromAuraBtn = document.getElementById('backFromAuraBtn');
+        const backFromBgBtn = document.getElementById('backFromBgBtn');
+        const dailyGrid = document.getElementById('dailyGrid');
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        let coins = parseInt(localStorage.getItem('ninja_coins')) || 0;
+        let diamonds = parseInt(localStorage.getItem('ninja_diamonds')) || 0;
+        let lastCheckIn = localStorage.getItem('ninja_last_checkin') || "";
+        let checkInStreak = parseInt(localStorage.getItem('ninja_streak')) || 0;
+
+        let ownedAuras = JSON.parse(localStorage.getItem('ninja_owned_auras')) || ['default'];
+        let currentAura = localStorage.getItem('ninja_current_aura') || 'default';
+
+        let ownedBgs = JSON.parse(localStorage.getItem('ninja_owned_bgs')) || ['classic'];
+        let currentBg = localStorage.getItem('ninja_current_bg') || 'classic';
+
+        const AURAS = [
+            { id: 'default', name: '⚡ Classic Gold', color: '#ffda79', price: 0 },
+            { id: 'rainbow', name: '🌈 7-Color Rainbow', color: 'rainbow', price: 100 },
+            { id: 'red', name: '🔥 Red Flame', color: '#ff4757', price: 100 },
+            { id: 'blue', name: '⚡ Blue Ice', color: '#00d2d3', price: 100 },
+            { id: 'white', name: '✨ Pure White', color: '#ffffff', price: 100 }
+        ];
+
+        const BACKGROUNDS = [
+            { id: 'classic', name: '🪵 Dark Wood', price: 0, draw: (ctx, w, h) => { ctx.fillStyle = '#110904'; ctx.fillRect(0, 0, w, h); } },
+            { id: 'bamboo', name: '🎋 Bamboo Dojo', price: 200, draw: (ctx, w, h) => {
+                let grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, '#0a2312'); grad.addColorStop(1, '#030d06');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+            }},
+            { id: 'cyberpunk', name: '🏙️ Neon Cyber', price: 300, draw: (ctx, w, h) => {
+                let grad = ctx.createLinearGradient(0, 0, w, h);
+                grad.addColorStop(0, '#12002b'); grad.addColorStop(1, '#001a33');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+            }},
+            { id: 'sunset', name: '🌅 Sunset Dojo', price: 400, draw: (ctx, w, h) => {
+                let grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, '#3d0c11'); grad.addColorStop(1, '#110508');
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, w, h);
+            }}
+        ];
+
+        let rainbowHue = 0;
+        let score = 0;
+        let isEndless = false;
+        let selectedDuration = 90; 
+        let timeLeft = 90; 
+        let isGameOver = true;
+        let objects = [];
+        let particles = [];
+        let bladeTrail = [];
+        let isSwiping = false;
+        let lastTime = performance.now();
+        let timerInterval = null;
+        let animationFrameId = null;
+        let spawnTimeout = null;
+
+        const DAILY_REWARDS = [10, 15, 15, 20, 20, 20, 100];
+        const TYPES = {
+            APPLE: { emoji: '🍎', score: 10 },
+            BANANA: { emoji: '🍌', score: 20 },
+            WATERMELON: { emoji: '🍉', score: 30 },
+            BOMB: { emoji: '💣', score: -50 }
+        };
+        const GRAVITY = 900;
+
+        function updateCurrencyUI() {
+            coinsEl.innerText = coins;
+            diamondsEl.innerText = diamonds;
+            localStorage.setItem('ninja_coins', coins);
+            localStorage.setItem('ninja_diamonds', diamonds);
+        }
+
+        function renderAuraMenu() {
+            auraGrid.innerHTML = '';
+            AURAS.forEach(aura => {
+                const card = document.createElement('div');
+                const isOwned = ownedAuras.includes(aura.id);
+                const isEquipped = currentAura === aura.id;
+                card.className = `shop-card ${isEquipped ? 'equipped' : ''}`;
+                
+                let btnText = isEquipped ? 'EQUIPPED' : isOwned ? 'EQUIP' : `🪙 ${aura.price}`;
+                let btnClass = isEquipped ? 'active-status' : isOwned ? 'equip' : 'buy';
+
+                card.innerHTML = `<div class="shop-title">${aura.name}</div><button class="shop-btn ${btnClass}">${btnText}</button>`;
+                
+                const cardBtn = card.querySelector('button');
+                if (!isEquipped) {
+                    cardBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (isOwned) {
+                            currentAura = aura.id;
+                            localStorage.setItem('ninja_current_aura', currentAura);
+                            renderAuraMenu();
+                        } else if (coins >= aura.price) {
+                            coins -= aura.price;
+                            ownedAuras.push(aura.id);
+                            currentAura = aura.id;
+                            localStorage.setItem('ninja_owned_auras', JSON.stringify(ownedAuras));
+                            localStorage.setItem('ninja_current_aura', currentAura);
+                            updateCurrencyUI();
+                            renderAuraMenu();
+                        } else {
+                            alert("Not enough coins!");
+                        }
+                    });
+                }
+                auraGrid.appendChild(card);
+            });
+        }
+
+        function renderBgMenu() {
+            bgGrid.innerHTML = '';
+            BACKGROUNDS.forEach(bg => {
+                const card = document.createElement('div');
+                const isOwned = ownedBgs.includes(bg.id);
+                const isEquipped = currentBg === bg.id;
+                card.className = `shop-card ${isEquipped ? 'equipped' : ''}`;
+                
+                let btnText = isEquipped ? 'EQUIPPED' : isOwned ? 'EQUIP' : `🪙 ${bg.price}`;
+                let btnClass = isEquipped ? 'active-status' : isOwned ? 'equip' : 'buy';
+
+                card.innerHTML = `<div class="shop-title">${bg.name}</div><button class="shop-btn ${btnClass}">${btnText}</button>`;
+                
+                const cardBtn = card.querySelector('button');
+                if (!isEquipped) {
+                    cardBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (isOwned) {
+                            currentBg = bg.id;
+                            localStorage.setItem('ninja_current_bg', currentBg);
+                            renderBgMenu();
+                        } else if (coins >= bg.price) {
+                            coins -= bg.price;
+                            ownedBgs.push(bg.id);
+                            currentBg = bg.id;
+                            localStorage.setItem('ninja_owned_bgs', JSON.stringify(ownedBgs));
+                            localStorage.setItem('ninja_current_bg', currentBg);
+                            updateCurrencyUI();
+                            renderBgMenu();
+                        } else {
+                            alert("Not enough coins!");
+                        }
+                    });
+                }
+                bgGrid.appendChild(card);
+            });
+        }
+
+        function formatTimerText(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `Time: ${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function renderDailyGrid() {
+            dailyGrid.innerHTML = '';
+            DAILY_REWARDS.forEach((reward, index) => {
+                const card = document.createElement('div');
+                card.className = `day-card ${index === checkInStreak ? 'active' : ''} ${index < checkInStreak ? 'claimed' : ''}`;
+                card.innerHTML = `<div>Day ${index + 1}</div><div style="font-weight:bold; color:#00d2d3;">💎 ${reward}</div>`;
+                dailyGrid.appendChild(card);
+            });
+        }
+
+        dailyBtnTop.addEventListener('click', () => {
+            renderDailyGrid();
+            dailyModal.style.display = 'block';
+        });
+        
+        closeDailyBtn.addEventListener('click', () => {
+            dailyModal.style.display = 'none';
+        });
+
+        claimBtn.addEventListener('click', () => {
+            const today = new Date().toDateString();
+            if (lastCheckIn === today) {
+                alert("Already claimed today!");
+                dailyModal.style.display = 'none';
+                return;
+            }
+            diamonds += DAILY_REWARDS[checkInStreak];
+            checkInStreak = (checkInStreak + 1) % 7;
+            lastCheckIn = today;
+            localStorage.setItem('ninja_last_checkin', lastCheckIn);
+            localStorage.setItem('ninja_streak', checkInStreak);
+            updateCurrencyUI();
+            dailyModal.style.display = 'none';
+        });
+
+        class GameObject {
+            constructor() {
+                const rand = Math.random();
+                const typeData = rand < 0.35 ? TYPES.APPLE : rand < 0.65 ? TYPES.BANANA : rand < 0.80 ? TYPES.WATERMELON : TYPES.BOMB;
+                this.emoji = typeData.emoji;
+                this.scoreValue = typeData.score;
+                this.isBomb = (typeData === TYPES.BOMB);
+                this.radius = 35;
+                this.x = Math.random() * (canvas.width - 120) + 60;
+                this.y = canvas.height + 50;
+                this.dx = (Math.random() - 0.5) * 350;
+                this.dy = -(Math.random() * 150 + 750);
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 5;
+                this.isSliced = false;
+            }
+            update(dt) {
+                this.dy += GRAVITY * dt;
+                this.x += this.dx * dt;
+                this.y += this.dy * dt;
+                this.rotation += this.rotationSpeed * dt;
+            }
+            draw() {
+                if (this.isSliced) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.font = '50px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        class SlicedParticle {
+            constructor(x, y, emoji, direction) {
+                this.x = x; this.y = y;
+                this.dx = direction * (Math.random() * 200 + 100);
+                this.dy = -(Math.random() * 150 + 80);
+                this.emoji = emoji;
+                this.alpha = 1;
+                this.rotation = 0;
+            }
+            update(dt) {
+                this.dy += GRAVITY * dt;
+                this.x += this.dx * dt;
+                this.y += this.dy * dt;
+                this.alpha -= 1.8 * dt;
+                this.rotation += 4 * dt;
+            }
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.font = '35px Arial';
+                ctx.fillText(this.emoji, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        function showFloatingText(x, y, text, color) {
+            const el = document.createElement('div');
+            el.className = 'floating-score';
+            el.innerText = text;
+            el.style.color = color;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 600);
+        }
+
+        function spawnObject() {
+            if (isGameOver) return;
+            const spawnCount = Math.floor(Math.random() * 2) + 1;
+            for (let i = 0; i < spawnCount; i++) {
+                objects.push(new GameObject());
+            }
+            spawnTimeout = setTimeout(spawnObject, Math.random() * 300 + 500);
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            if (isEndless) {
+                timerEl.innerText = "Mode: Endless ♾️";
+                return;
+            }
+            timerEl.innerText = formatTimerText(timeLeft);
+            timerInterval = setInterval(() => {
+                if (isGameOver) return;
+                timeLeft--;
+                timerEl.innerText = formatTimerText(timeLeft);
+                if (timeLeft <= 0) endGame("TIME'S UP!");
+            }, 1000);
+        }
+
+        function handlePointer(x, y) {
+            if (isGameOver) return;
+            bladeTrail.push({x, y, time: performance.now()});
+            checkCollisions(x, y);
+        }
+
+        window.addEventListener('pointerdown', (e) => { 
+            if(!isGameOver) { isSwiping = true; handlePointer(e.clientX, e.clientY); }
+        });
+        window.addEventListener('pointermove', (e) => { if (isSwiping) handlePointer(e.clientX, e.clientY); });
+        window.addEventListener('pointerup', () => { isSwiping = false; });
+
+        function checkCollisions(mouseX, mouseY) {
+            for (let i = objects.length - 1; i >= 0; i--) {
+                let obj = objects[i];
+                if (obj.isSliced) continue;
+                if (Math.hypot(mouseX - obj.x, mouseY - obj.y) < obj.radius + 15) {
+                    obj.isSliced = true;
+                    if (obj.isBomb) {
+                        if (isEndless) {
+                            endGame("BOOM! GAME OVER 💣");
+                            return;
+                        } else {
+                            score = Math.max(0, score + obj.scoreValue);
+                            scoreEl.innerText = score;
+                            showFloatingText(obj.x, obj.y, "-50", "#ff4757");
+                        }
+                    } else {
+                        score += obj.scoreValue;
+                        scoreEl.innerText = score;
+                        const color = obj.scoreValue === 30 ? '#00d2d3' : (obj.scoreValue === 20 ? '#ffda79' : '#ff6b6b');
+                        showFloatingText(obj.x, obj.y, `+${obj.scoreValue}`, color);
+                        particles.push(new SlicedParticle(obj.x, obj.y, obj.emoji, -1));
+                        particles.push(new SlicedParticle(obj.x, obj.y, obj.emoji, 1));
+                    }
+                }
+            }
+        }
+
+        function drawBladeTrail() {
+            const now = performance.now();
+            bladeTrail = bladeTrail.filter(p => now - p.time < 100);
+            if (bladeTrail.length < 2) return;
+
+            rainbowHue = (rainbowHue + 10) % 360;
+            const auraData = AURAS.find(a => a.id === currentAura) || AURAS[0];
+            let trailColor = auraData.color === 'rainbow' ? `hsl(${rainbowHue}, 100%, 60%)` : auraData.color;
+
+            ctx.beginPath();
+            ctx.moveTo(bladeTrail[0].x, bladeTrail[0].y);
+            for (let i = 1; i < bladeTrail.length - 1; i++) {
+                let xc = (bladeTrail[i].x + bladeTrail[i + 1].x) / 2;
+                let yc = (bladeTrail[i].y + bladeTrail[i + 1].y) / 2;
+                ctx.quadraticCurveTo(bladeTrail[i].x, bladeTrail[i].y, xc, yc);
+            }
+            ctx.strokeStyle = trailColor;
+            ctx.lineWidth = 6;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        function gameLoop(now) {
+            if (isGameOver) return;
+            const dt = Math.min((now - lastTime) / 1000, 0.05);
+            lastTime = now;
+
+            const bgData = BACKGROUNDS.find(b => b.id === currentBg) || BACKGROUNDS[0];
+            bgData.draw(ctx, canvas.width, canvas.height);
+
+            for (let i = objects.length - 1; i >= 0; i--) {
+                objects[i].update(dt);
+                objects[i].draw();
+                if (objects[i].y > canvas.height + 80) objects.splice(i, 1);
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(dt);
+                particles[i].draw();
+                if (particles[i].alpha <= 0) particles.splice(i, 1);
+            }
+
+            drawBladeTrail();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function endGame(reason = "TIME'S UP!") {
+            isGameOver = true;
+            clearInterval(timerInterval);
+            clearTimeout(spawnTimeout);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+
+            const earnedCoins = Math.floor((score / 15) * 10);
+            coins += earnedCoins;
+            updateCurrencyUI();
+
+            gameOverTitle.innerText = reason;
+            finalScoreEl.innerText = score;
+            earnedCoinsEl.innerText = earnedCoins;
+
+            reviveBtn.style.display = isEndless ? 'block' : 'none';
+            gameOverMenu.style.display = 'block';
+            uiContainer.style.display = 'none';
+        }
+
+        function reviveGame() {
+            if (diamonds >= 5) {
+                diamonds -= 5;
+                updateCurrencyUI();
+
+                objects = objects.filter(obj => !obj.isBomb);
+                isGameOver = false;
+                gameOverMenu.style.display = 'none';
+                uiContainer.style.display = 'flex';
+                
+                lastTime = performance.now();
+                startTimer();
+                spawnObject();
+                animationFrameId = requestAnimationFrame(gameLoop);
+            } else {
+                alert("Not enough diamonds! You need 5 diamonds to revive.");
+            }
+        }
+
+        function startGame(duration = null) {
+            isGameOver = true;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            if (timerInterval) clearInterval(timerInterval);
+            clearTimeout(spawnTimeout);
+
+            isEndless = (duration === 'endless');
+            if (!isEndless && duration) selectedDuration = parseInt(duration);
+            
+            score = 0;
+            timeLeft = selectedDuration;
+            scoreEl.innerText = score;
+            objects = [];
+            particles = [];
+            bladeTrail = [];
+            
+            mainMenu.style.display = 'none';
+            timerSelectionMenu.style.display = 'none';
+            auraMenu.style.display = 'none';
+            bgMenu.style.display = 'none';
+            gameOverMenu.style.display = 'none';
+            uiContainer.style.display = 'flex';
+            dailyBtnTop.style.display = 'none';
+            
+            isGameOver = false;
+            lastTime = performance.now();
+            updateCurrencyUI();
+            startTimer();
+            spawnObject();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function goHome() {
+            isGameOver = true;
+            clearInterval(timerInterval);
+            clearTimeout(spawnTimeout);
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            
+            gameOverMenu.style.display = 'none';
+            timerSelectionMenu.style.display = 'none';
+            auraMenu.style.display = 'none';
+            bgMenu.style.display = 'none';
+            uiContainer.style.display = 'none';
+            mainMenu.style.display = 'flex';
+            dailyBtnTop.style.display = 'block';
+            
+            const bgData = BACKGROUNDS.find(b => b.id === currentBg) || BACKGROUNDS[0];
+            bgData.draw(ctx, canvas.width, canvas.height);
+            updateCurrencyUI();
+        }
+
+        openTimerMenuBtn.addEventListener('click', () => { mainMenu.style.display = 'none'; timerSelectionMenu.style.display = 'flex'; });
+        startEndlessBtn.addEventListener('click', () => startGame('endless'));
+        openAuraMenuBtn.addEventListener('click', () => { renderAuraMenu(); mainMenu.style.display = 'none'; auraMenu.style.display = 'flex'; });
+        openBgMenuBtn.addEventListener('click', () => { renderBgMenu(); mainMenu.style.display = 'none'; bgMenu.style.display = 'flex'; });
+        backToMenuBtn.addEventListener('click', () => { timerSelectionMenu.style.display = 'none'; mainMenu.style.display = 'flex'; });
+        backFromAuraBtn.addEventListener('click', () => { auraMenu.style.display = 'none'; mainMenu.style.display = 'flex'; });
+        backFromBgBtn.addEventListener('click', () => { bgMenu.style.display = 'none'; mainMenu.style.display = 'flex'; });
+
+        document.querySelectorAll('.time-option-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => startGame(e.currentTarget.getAttribute('data-time')));
+        });
+
+        restartBtn.addEventListener('click', () => startGame(isEndless ? 'endless' : selectedDuration));
+        reviveBtn.addEventListener('click', reviveGame);
+        homeBtn.addEventListener('click', goHome);
+
+        updateCurrencyUI();
+        
+        const initialBgData = BACKGROUNDS.find(b => b.id === currentBg) || BACKGROUNDS[0];
+        initialBgData.draw(ctx, canvas.width, canvas.height);
+    </script>
+</body>
+</html>
